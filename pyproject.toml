@@ -1,0 +1,45 @@
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+name = "streamz_nats"
+version = "0.1.0"
+description = ""
+authors = [
+    "Marek Wadinger <marekwadinger@icloud.com>",
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+repository = "https://github.com/MarekWadinger/streamz_nats"
+packages = [{include = "streamz_nats"}]
+readme = "README.md"
+keywords = ["streamz", "nats"]
+
+[tool.poetry.dependencies]
+python = "^3.7.2"
+streamz = "^0.6.4"
+nats-py = "^2.4.0"
+
+[tool.poetry.dev-dependencies]
+pytest-cov = "^3.0.0"
+pylint = "^2.17.4"
+
+[tool.poetry.plugins."streamz.sources"]
+from_nats = "streamz_nats.sources:from_nats"
+
+[tool.poetry.plugins."streamz.sinks"]
+to_nats = "streamz_nats.sinks:to_nats"
+
+[tool.pytest.ini_options]
+addopts = "--doctest-modules --cov --cov-report html --cov-report term-missing --cov-fail-under 0 --ignore=examples"
+
+[tool.pylint]
+max-line-length = 79
+disable = [
+    "W"
+]
