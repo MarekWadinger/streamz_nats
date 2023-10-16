@@ -1,11 +1,11 @@
 import asyncio
 import atexit
 import os
-import pytest
 import shlex
 import subprocess
 
 import nats
+import pytest
 from streamz import Stream
 from streamz.utils_test import wait_for
 

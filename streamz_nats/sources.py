@@ -6,10 +6,10 @@ Classes:
     from_nats
 """
 import asyncio
-from typing import Union, Callable
+from typing import Callable, Union
 
 import nats
-from streamz import Stream, Source
+from streamz import Source, Stream
 
 
 @Stream.register_api(staticmethod)
