@@ -18,7 +18,7 @@ jobs:
     name: ${{ matrix.os }} / ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}-latest
     strategy:
-      fail-fast: false # allow other jobs in matrix if one fails
+      fail-fast: true # allow other jobs in matrix if one fails
       matrix:
         os: [Ubuntu, macOS]
         python-version: ["3.9", "3.10", "3.11", "3.12"]
