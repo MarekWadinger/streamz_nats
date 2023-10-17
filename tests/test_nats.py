@@ -83,14 +83,47 @@ async def _test_from_nats():
     stream.start()
     await asyncio.sleep(1.1)  # for loop to run
     for i in range(5):
-        print('loop', i)
         await nc.publish(f"test.{i}", b'test.%d' % i)
         await asyncio.sleep(0.1)  # small pause ensures correct ordering
     # it takes some time for messages to come back out of nc
-    print(out)
     wait_for(lambda: len(out) == 5, 5, period=0.1)
     assert out[-1] == 'test.4'
+    assert out[0] == 'test.0'
 
 
 def test_from_nats():
     asyncio.run(_test_from_nats())
+
+
+async def _test_to_nats():
+    print("starting")
+    if LAUNCH_NATS:
+        launch_nats()
+    else:
+        raise pytest.skip.Exception(  # pragma: no cover
+            "nats not available. "
+            "To launch nats use `export STREAMZ_LAUNCH_NATS=true`")
+
+    nc = await nats.connect("nats://localhost:4222")
+    stream = Stream()
+    producer = stream.to_nats(  # type: ignore
+        service_url="nats://localhost:4222",
+        topic="test.response")
+    producer.start()
+    await asyncio.sleep(1.1)  # for loop to run
+    sub = await nc.subscribe("test.response", max_msgs=5)
+    for i in range(5):
+        await asyncio.sleep(0.1)  # small pause ensures correct ordering
+        stream.emit(f"test.{i}".encode())
+
+    async def msg_handle(msg):
+        return msg.data.decode()
+    msgs = await asyncio.gather(
+        *[msg_handle(msg)
+          async for msg in sub.messages])
+    assert msgs[-1] == 'test.4'
+    assert msgs[0] == 'test.0'
+
+
+def test_to_nats():
+    asyncio.run(_test_to_nats())

@@ -34,7 +34,7 @@ The following example creates a consumer of the `greet.*` topics, where `*` is
 wildcard for any substring, receives incoming messages, prints the content and
 ID of messages that arrive, and acknowledges each message to the Pulsar broker.
 
-```python
+```py
 import nats
 from streamz import Stream
 
@@ -51,4 +51,22 @@ while True:
     try:
         if L:
             print(L.pop(-1))
+```
+
+### 3. Create a producer
+
+The following example creates a Python producer for the `my-response` topic and
+sends 3 messages on that topic:
+
+```py
+from streamz import Stream
+
+source = Stream()
+producer = source.to_nats(
+    'nats://localhost:4222',
+    'my-response',
+    )
+
+for i in range(3):
+    source.emit(('hello-nats-%d' % i).encode('utf-8'))
 ```

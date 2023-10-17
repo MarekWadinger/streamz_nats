@@ -32,7 +32,7 @@ class from_nats(Source):  # pylint: disable=C0103
             service_url: Union[str, list[str]],
             topics: Union[str, list[str]],
             callback: Union[Callable, None] = None,
-            poll_interval=0.1,
+            poll_interval: float = 0.1,
             **kwargs):
         self.service_url = service_url
         if isinstance(topics, list):
