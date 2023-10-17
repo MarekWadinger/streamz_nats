@@ -20,8 +20,8 @@ jobs:
     strategy:
       fail-fast: true # allow other jobs in matrix if one fails
       matrix:
-        os: [Ubuntu, macOS]
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        os: [Ubuntu]
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
 
     steps:
     - uses: actions/checkout@v3
