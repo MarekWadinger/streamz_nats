@@ -45,7 +45,7 @@ def launch_nats():
     stop_docker(let_fail=True)
     subprocess.call(shlex.split("docker pull nats:latest"))
     cmd = ("docker run -t -d -p 4222:4222 "
-           "--name streamz-nats nats:latest")
+           "--name streamz-nats nats:latest -js")
     print(cmd)
     cid = subprocess.check_output(shlex.split(cmd)).decode()[:-1]
 
@@ -127,3 +127,73 @@ async def _test_to_nats():
 
 def test_to_nats():
     asyncio.run(_test_to_nats())
+
+
+async def _test_from_jetstream():
+    try:
+        print("starting")
+        if LAUNCH_NATS:
+            launch_nats()
+        else:
+            raise pytest.skip.Exception(  # pragma: no cover
+                "nats not available. "
+                "To launch nats use `export STREAMZ_LAUNCH_NATS=true`")
+
+        nc = await nats.connect("nats://localhost:4222")
+        js = nc.jetstream()
+        await js.add_stream(name="test-stream", subjects=["test.*"])
+
+        await asyncio.sleep(1.1)  # for loop to run
+        for i in range(5):
+            await js.publish(f"test.{i}", b'test.%d' % i)
+
+        stream = Stream.from_jetstream(  # type: ignore
+            service_url="nats://localhost:4222",
+            topics="test.*",
+            subscription_name="test")
+        out = stream.sink_to_list()
+        stream.start()
+        await asyncio.sleep(1.1)  # for data to fetch
+        # it takes some time for messages to come back out of nc
+        wait_for(lambda: len(out) == 5, 5, period=0.1)
+        assert out[-1] == 'test.4'
+        assert out[0] == 'test.0'
+    finally:
+        await js.delete_stream(name="test-stream")
+        await nc.close()
+
+
+def test_from_jetstream():
+    asyncio.run(_test_from_jetstream())
+
+
+async def _test_to_jetstream():
+    print("starting")
+    if LAUNCH_NATS:
+        launch_nats()
+    else:
+        raise pytest.skip.Exception(  # pragma: no cover
+            "nats not available. "
+            "To launch nats use `export STREAMZ_LAUNCH_NATS=true`")
+
+    nc = await nats.connect("nats://localhost:4222")
+    js = nc.jetstream()
+    stream = Stream()
+    producer = stream.to_jetstream(  # type: ignore
+        service_url="nats://localhost:4222",
+        topic="test.response",
+        stream_name="test-stream")
+    producer.start()
+    for i in range(5):
+        await asyncio.sleep(0.1)  # small pause ensures correct ordering
+        stream.emit(f"test.{i}".encode())
+    await asyncio.sleep(1.1)  # for loop to run
+    sub = await js.pull_subscribe("test.response", durable="test")
+    for i in range(0, 5):
+        msgs = await sub.fetch(1)
+        for msg in msgs:
+            assert msg.data.decode() == f"test.{i}"
+
+
+def test_to_jetstream():
+    asyncio.run(_test_to_jetstream())
