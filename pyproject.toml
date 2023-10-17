@@ -21,7 +21,7 @@ readme = "README.md"
 keywords = ["streamz", "nats"]
 
 [tool.poetry.dependencies]
-python = "^3.8.1"
+python = "^3.9.0"
 streamz = "^0.6.4"
 nats-py = "^2.4.0"
 
