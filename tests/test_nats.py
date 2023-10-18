@@ -66,70 +66,75 @@ def launch_nats():
     return cid
 
 
-async def _test_from_nats():
-    print("starting")
-    if LAUNCH_NATS:
-        launch_nats()
-    else:
-        raise pytest.skip.Exception(  # pragma: no cover
-            "nats not available. "
-            "To launch nats use `export STREAMZ_LAUNCH_NATS=true`")
+async def _test_from_nats_subscribe_publish():
+    try:
+        print("starting")
+        if LAUNCH_NATS:
+            launch_nats()
+        else:
+            raise pytest.skip.Exception(  # pragma: no cover
+                "nats not available. "
+                "To launch nats use `export STREAMZ_LAUNCH_NATS=true`")
 
-    nc = await nats.connect("nats://localhost:4222")
-    stream = Stream.from_nats(  # type: ignore
-        service_url="nats://localhost:4222",
-        topics="test.*")
-    out = stream.sink_to_list()
-    stream.start()
-    await asyncio.sleep(1.1)  # for loop to run
-    for i in range(5):
-        await nc.publish(f"test.{i}", b'test.%d' % i)
-        await asyncio.sleep(0.1)  # small pause ensures correct ordering
-    # it takes some time for messages to come back out of nc
-    wait_for(lambda: len(out) == 5, 5, period=0.1)
-    assert out[-1] == 'test.4'
-    assert out[0] == 'test.0'
+        nc = await nats.connect("nats://localhost:4222")
+        stream = Stream.from_nats(  # type: ignore
+            service_url="nats://localhost:4222",
+            topics="test.*")
+        out = stream.sink_to_list()
+        stream.start()
+        await asyncio.sleep(1.1)  # for loop to run
+        for i in range(5):
+            await nc.publish(f"test.{i}", b'test.%d' % i)
+            await asyncio.sleep(0.1)  # small pause ensures correct ordering
+        # it takes some time for messages to come back out of nc
+        wait_for(lambda: len(out) == 5, 5, period=0.1)
+        assert out[-1] == 'test.4'
+        assert out[0] == 'test.0'
+    finally:
+        await nc.close()
 
 
 def test_from_nats():
-    asyncio.run(_test_from_nats())
+    asyncio.run(_test_from_nats_subscribe_publish())
 
 
-async def _test_to_nats():
-    print("starting")
-    if LAUNCH_NATS:
-        launch_nats()
-    else:
-        raise pytest.skip.Exception(  # pragma: no cover
-            "nats not available. "
-            "To launch nats use `export STREAMZ_LAUNCH_NATS=true`")
+async def _test_to_nats_subscribe_publish():
+    try:
+        print("starting")
+        if LAUNCH_NATS:
+            launch_nats()
+        else:
+            raise pytest.skip.Exception(  # pragma: no cover
+                "nats not available. "
+                "To launch nats use `export STREAMZ_LAUNCH_NATS=true`")
 
-    nc = await nats.connect("nats://localhost:4222")
-    stream = Stream()
-    producer = stream.to_nats(  # type: ignore
-        service_url="nats://localhost:4222",
-        topic="test.response")
-    producer.start()
-    await asyncio.sleep(1.1)  # for loop to run
-    sub = await nc.subscribe("test.response", max_msgs=5)
-    for i in range(5):
-        await asyncio.sleep(0.1)  # small pause ensures correct ordering
-        stream.emit(f"test.{i}".encode())
+        nc = await nats.connect("nats://localhost:4222")
+        stream = Stream()
+        producer = stream.to_nats(  # type: ignore
+            service_url="nats://localhost:4222",
+            topic="test.response")
+        producer.start()
+        await asyncio.sleep(1.1)  # for loop to run
+        sub = await nc.subscribe("test.response", max_msgs=5)
+        for i in range(5):
+            await asyncio.sleep(0.1)  # small pause ensures correct ordering
+            stream.emit(f"test.{i}".encode())
 
-    async def msg_handle(msg):
-        return msg.data.decode()
-    msgs = await asyncio.gather(
-        *[msg_handle(msg)
-          async for msg in sub.messages])
-    assert msgs[-1] == 'test.4'
-    assert msgs[0] == 'test.0'
+        async def msg_handle(msg):
+            return msg.data.decode()
+        msgs = await asyncio.gather(
+            *[msg_handle(msg) async for msg in sub.messages])
+        assert msgs[-1] == 'test.4'
+        assert msgs[0] == 'test.0'
+    finally:
+        await nc.close()
 
 
 def test_to_nats():
-    asyncio.run(_test_to_nats())
+    asyncio.run(_test_to_nats_subscribe_publish())
 
 
-async def _test_from_jetstream():
+async def _test_from_jetstream_publish_pullsubscribe():
     try:
         print("starting")
         if LAUNCH_NATS:
@@ -164,36 +169,40 @@ async def _test_from_jetstream():
 
 
 def test_from_jetstream():
-    asyncio.run(_test_from_jetstream())
+    asyncio.run(_test_from_jetstream_publish_pullsubscribe())
 
 
-async def _test_to_jetstream():
-    print("starting")
-    if LAUNCH_NATS:
-        launch_nats()
-    else:
-        raise pytest.skip.Exception(  # pragma: no cover
-            "nats not available. "
-            "To launch nats use `export STREAMZ_LAUNCH_NATS=true`")
+async def _test_to_jetstream_publish_pullsubscribe():
+    try:
+        print("starting")
+        if LAUNCH_NATS:
+            launch_nats()
+        else:
+            raise pytest.skip.Exception(  # pragma: no cover
+                "nats not available. "
+                "To launch nats use `export STREAMZ_LAUNCH_NATS=true`")
 
-    nc = await nats.connect("nats://localhost:4222")
-    js = nc.jetstream()
-    stream = Stream()
-    producer = stream.to_jetstream(  # type: ignore
-        service_url="nats://localhost:4222",
-        topic="test.response",
-        stream_name="test-stream")
-    producer.start()
-    for i in range(5):
-        await asyncio.sleep(0.1)  # small pause ensures correct ordering
-        stream.emit(f"test.{i}".encode())
-    await asyncio.sleep(1.1)  # for loop to run
-    sub = await js.pull_subscribe("test.response", durable="test")
-    for i in range(0, 5):
-        msgs = await sub.fetch(1)
-        for msg in msgs:
-            assert msg.data.decode() == f"test.{i}"
+        nc = await nats.connect("nats://localhost:4222")
+        js = nc.jetstream()
+        stream = Stream()
+        producer = stream.to_jetstream(  # type: ignore
+            service_url="nats://localhost:4222",
+            topic="test.response",
+            stream_name="test-stream")
+        producer.start()
+        for i in range(5):
+            await asyncio.sleep(0.1)  # small pause ensures correct ordering
+            stream.emit(f"test.{i}".encode())
+        await asyncio.sleep(1.1)  # for loop to run
+        sub = await js.pull_subscribe("test.response", durable="test")
+        for i in range(0, 5):
+            msgs = await sub.fetch(1)
+            for msg in msgs:
+                assert msg.data.decode() == f"test.{i}"
+    finally:
+        await js.delete_stream(name="test-stream")
+        await nc.close()
 
 
 def test_to_jetstream():
-    asyncio.run(_test_to_jetstream())
+    asyncio.run(_test_to_jetstream_publish_pullsubscribe())
