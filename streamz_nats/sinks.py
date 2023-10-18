@@ -59,8 +59,10 @@ class to_nats(Sink):  # pylint: disable=C0103
         self.futures = []
 
     async def update(self, x: bytes, who=None, metadata=None):
-        self.client = await nats.connect(self.service_url, **self.kwargs)
+        if not hasattr(self, "client"):
+            self.client = await nats.connect(self.service_url, **self.kwargs)
         await self.client.publish(self.topic, x)
+
         await asyncio.sleep(self.poll_interval)
 
 
@@ -113,9 +115,17 @@ class to_jetstream(Sink):  # pylint: disable=C0103
         self.futures = []
 
     async def update(self, x: bytes, who=None, metadata=None):
-        self.nc = await nats.connect(self.service_url, **self.kwargs)
-        self.client = self.nc.jetstream()
-        await self.client.add_stream(
-            name=self.stream_name, subjects=[self.topic])
+        if not hasattr(self, "client") or self.client is None:
+            self.nc = await nats.connect(self.service_url, **self.kwargs)
+            self.client = self.nc.jetstream()
+            await self.client.add_stream(
+                name=self.stream_name, subjects=[self.topic])
         await self.client.publish(self.topic, x)
         await asyncio.sleep(self.poll_interval)
+
+    async def destroy(self):
+        if hasattr(self, "client") and self.client is not None:
+            await self.client.delete_stream(name=self.stream_name)
+            await self.nc.close()
+        self.client = None
+        super().destroy()
