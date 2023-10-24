@@ -78,7 +78,7 @@ async def _test_from_nats_subscribe_publish():
 
         nc = await nats.connect("nats://localhost:4222")
         stream = Stream.from_nats(  # type: ignore
-            service_url="nats://localhost:4222",
+            servers="nats://localhost:4222",
             topics="test.*")
         out = stream.sink_to_list()
         stream.start()
@@ -99,19 +99,18 @@ def test_from_nats():
 
 
 async def _test_to_nats_subscribe_publish():
+    print("starting")
+    if LAUNCH_NATS:
+        launch_nats()
+    else:
+        raise pytest.skip.Exception(  # pragma: no cover
+            "nats not available. "
+            "To launch nats use `export STREAMZ_LAUNCH_NATS=true`")
     try:
-        print("starting")
-        if LAUNCH_NATS:
-            launch_nats()
-        else:
-            raise pytest.skip.Exception(  # pragma: no cover
-                "nats not available. "
-                "To launch nats use `export STREAMZ_LAUNCH_NATS=true`")
-
         nc = await nats.connect("nats://localhost:4222")
         stream = Stream()
         producer = stream.to_nats(  # type: ignore
-            service_url="nats://localhost:4222",
+            servers="nats://localhost:4222",
             topic="test.response")
         producer.start()
         await asyncio.sleep(1.1)  # for loop to run
@@ -135,15 +134,14 @@ def test_to_nats():
 
 
 async def _test_from_jetstream_publish_pullsubscribe():
+    print("starting")
+    if LAUNCH_NATS:
+        launch_nats()
+    else:
+        raise pytest.skip.Exception(  # pragma: no cover
+            "nats not available. "
+            "To launch nats use `export STREAMZ_LAUNCH_NATS=true`")
     try:
-        print("starting")
-        if LAUNCH_NATS:
-            launch_nats()
-        else:
-            raise pytest.skip.Exception(  # pragma: no cover
-                "nats not available. "
-                "To launch nats use `export STREAMZ_LAUNCH_NATS=true`")
-
         nc = await nats.connect("nats://localhost:4222")
         js = nc.jetstream()
         await js.add_stream(name="test-stream", subjects=["test.*"])
@@ -153,7 +151,7 @@ async def _test_from_jetstream_publish_pullsubscribe():
             await js.publish(f"test.{i}", b'test.%d' % i)
 
         stream = Stream.from_jetstream(  # type: ignore
-            service_url="nats://localhost:4222",
+            servers="nats://localhost:4222",
             topics="test.*",
             subscription_name="test")
         out = stream.sink_to_list()
@@ -173,20 +171,19 @@ def test_from_jetstream():
 
 
 async def _test_to_jetstream_publish_pullsubscribe():
+    print("starting")
+    if LAUNCH_NATS:
+        launch_nats()
+    else:
+        raise pytest.skip.Exception(  # pragma: no cover
+            "nats not available. "
+            "To launch nats use `export STREAMZ_LAUNCH_NATS=true`")
     try:
-        print("starting")
-        if LAUNCH_NATS:
-            launch_nats()
-        else:
-            raise pytest.skip.Exception(  # pragma: no cover
-                "nats not available. "
-                "To launch nats use `export STREAMZ_LAUNCH_NATS=true`")
-
         nc = await nats.connect("nats://localhost:4222")
         js = nc.jetstream()
         stream = Stream()
         producer = stream.to_jetstream(  # type: ignore
-            service_url="nats://localhost:4222",
+            servers="nats://localhost:4222",
             topic="test.response",
             stream_name="test-stream")
         producer.start()

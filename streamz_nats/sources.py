@@ -31,12 +31,12 @@ class from_nats(Source):  # pylint: disable=C0103
     """
     def __init__(
             self,
-            service_url: Union[str, list[str]],
+            servers: Union[str, list[str]],
             topics: Union[str, list[str]],
             callback: Union[Callable, None] = None,
             poll_interval: float = 0.1,
             **kwargs):
-        self.service_url = service_url
+        self.servers = servers
         if isinstance(topics, list):
             self.topics: str = '|'.join(topics)
         else:
@@ -96,7 +96,7 @@ class from_nats(Source):  # pylint: disable=C0103
             await asyncio.sleep(self.poll_interval)
 
     async def run(self):
-        self.client = await nats.connect(self.service_url, **self.kwargs)
+        self.client = await nats.connect(self.servers, **self.kwargs)
         # # Opt 2.b Without coroutine out of loop - will return all messages
         # self.sub = await self.client.subscribe(
         #                 self.topics,
@@ -142,13 +142,13 @@ class from_jetstream(Source):  # pylint: disable=C0103
     """
     def __init__(
             self,
-            service_url: Union[str, list[str]],
+            servers: Union[str, list[str]],
             topics: Union[str, list[str]],
             subscription_name: str,
             callback: Union[Callable, None] = None,
             poll_interval: float = 0.1,
             **kwargs):
-        self.service_url = service_url
+        self.servers = servers
         if isinstance(topics, list):
             self.topics: str = '|'.join(topics)
         else:
@@ -169,7 +169,7 @@ class from_jetstream(Source):  # pylint: disable=C0103
 
     async def _process_msg(self, msg: Msg):
         try:
-            self.emit(msg.data.decode(), asynchronous=True)
+            self.emit(msg, asynchronous=True)
             await msg.ack()
         except Exception:  # pragma: no cover
             await msg.nak()
@@ -185,7 +185,7 @@ class from_jetstream(Source):  # pylint: disable=C0103
             await asyncio.sleep(self.poll_interval)
 
     async def run(self):
-        self.nc = await nats.connect(self.service_url, **self.kwargs)
+        self.nc = await nats.connect(self.servers, **self.kwargs)
         self.client = self.nc.jetstream()
         self.sub = await self.client.pull_subscribe(
             self.topics, durable=self.subscription_name)

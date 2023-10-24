@@ -36,11 +36,11 @@ class to_nats(Sink):  # pylint: disable=C0103
     def __init__(
             self,
             upstream,
-            service_url: Union[str, list[str]],
+            servers: Union[str, list[str]],
             topic: str,
             poll_interval: float = 0.1,
             **kwargs):
-        self.service_url = service_url
+        self.servers = servers
 
         self.topic = topic
         self.poll_interval = poll_interval
@@ -60,7 +60,7 @@ class to_nats(Sink):  # pylint: disable=C0103
 
     async def update(self, x: bytes, who=None, metadata=None):
         if not hasattr(self, "client"):
-            self.client = await nats.connect(self.service_url, **self.kwargs)
+            self.client = await nats.connect(self.servers, **self.kwargs)
         await self.client.publish(self.topic, x)
 
         await asyncio.sleep(self.poll_interval)
@@ -90,12 +90,12 @@ class to_jetstream(Sink):  # pylint: disable=C0103
     def __init__(
             self,
             upstream,
-            service_url: Union[str, list[str]],
+            servers: Union[str, list[str]],
             topic: str,
             stream_name: str,
             poll_interval: float = 0.1,
             **kwargs):
-        self.service_url = service_url
+        self.servers = servers
 
         self.topic = topic
         self.stream_name = stream_name
@@ -116,7 +116,7 @@ class to_jetstream(Sink):  # pylint: disable=C0103
 
     async def update(self, x: bytes, who=None, metadata=None):
         if not hasattr(self, "client") or self.client is None:
-            self.nc = await nats.connect(self.service_url, **self.kwargs)
+            self.nc = await nats.connect(self.servers, **self.kwargs)
             self.client = self.nc.jetstream()
             await self.client.add_stream(
                 name=self.stream_name, subjects=[self.topic])
