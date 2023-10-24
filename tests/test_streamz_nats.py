@@ -159,8 +159,8 @@ async def _test_from_jetstream_publish_pullsubscribe():
         await asyncio.sleep(1.1)  # for data to fetch
         # it takes some time for messages to come back out of nc
         wait_for(lambda: len(out) == 5, 5, period=0.1)
-        assert out[-1] == 'test.4'
-        assert out[0] == 'test.0'
+        assert out[-1].data.decode() == 'test.4'
+        assert out[0].data.decode() == 'test.0'
     finally:
         await js.delete_stream(name="test-stream")
         await nc.close()
